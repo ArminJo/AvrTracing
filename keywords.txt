@@ -1,0 +1,21 @@
+#######################################
+# Syntax Coloring Map for AvrTracing
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+initTrace	KEYWORD2
+enableINT0InterruptOnLowLevel	KEYWORD3
+startTracing	KEYWORD2
+stopTracing	KEYWORD2
+printNumberOfPushesForISR	KEYWORD2
+printTextSectionAddresses	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
