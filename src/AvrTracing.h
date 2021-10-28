@@ -49,7 +49,7 @@ void sendUSARTForTrace(char aChar);
 void sendUnsignedByteHex(uint8_t aByte);
 void sendUnsignedIntegerHex(uint16_t aInteger);
 void sendLineFeed();
-void sendStringForTrace(const char * aStringPtr);
+void sendStringForTrace(const char *aStringPtr);
 void sendPCHex(uint16_t aPC);
 void sendHex(uint16_t aInteger, char aName);
 void sendHexNoInterrupts(uint16_t aInteger, char aName);
