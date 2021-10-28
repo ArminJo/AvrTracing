@@ -1,21 +1,22 @@
 /*
- *  AvrTracing.cpp.h
- *  Is named "cpp.h" to enable easy excluding from a project without deleting the file.
+ *  AvrTracing.hpp
+ *  Is named "hpp" to enable easy excluding from a project without deleting the file from the source directory.
  *
- *  Attach button at pin 2. As long as you press it, the current program counter is printed.
+ *  Attach button between ground and pin 2. As long as you press it, the current program counter is printed.
  *  AND / OR use startTracing() and stopTracing() to trace selected parts of your code.
- *  Since with tracing enabled and 115200 baud, the effective CPU frequency is around 1 kHz.
+ *  !!! startTracing() sets pin 2 to LOW !!!
+ *  With tracing enabled and 115200 baud, the effective CPU frequency is around 1 kHz.
  *
  *  Program memory size of library:
- *  NUMBER_OF_PUSH is defined (static mode): 284 bytes + 52 if DEBUG_INIT is defined (336 total)
- *  NUMBER_OF_PUSH is not defined (dynamic mode): 344 bytes (60 bytes more than static) + 196 if DEBUG_INIT is defined (540 total)
- *  You can first use the dynamic mode without DEBUG_INIT defined, and call printNumberOfPushesForISR()
+ *  NUMBER_OF_PUSH is defined (static mode): 284 bytes + 52 if DEBUG_TRACE_INIT is defined (336 total)
+ *  NUMBER_OF_PUSH is not defined (dynamic mode): 344 bytes (60 bytes more than static) + 196 if DEBUG_TRACE_INIT is defined (540 total)
+ *  You can first use the dynamic mode without DEBUG_TRACE_INIT defined, and call printNumberOfPushesForISR()
  *  to get the right number of pushes and then use static mode with that value, to keep the program memory space low
  *  or to proof, that you have counted the pushes of the ISR correct :-).
  *
  *  Usage:
- *  #define NUMBER_OF_PUSH 0x11 // Static mode if enabled. Saves 60 bytes program memory.
- *  #include "Trace.cpp.h"
+ *  #define NUMBER_OF_PUSH 0x17 // This enables static mode. Saves 60 bytes program memory.
+ *  #include "AvrTracing.hpp"
  *  ...
  *  setup() {
  *    Serial.begin(115200);
@@ -25,7 +26,7 @@
  *    ...
  *  }
  *
- *  Copyright (C) 2020  Armin Joachimsmeyer
+ *  Copyright (C) 2020-2021  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
  *
  *  This file is part of AvrTracing https://github.com/ArminJo/AvrTracing.
@@ -44,11 +45,16 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
+#ifndef AVR_TRACING_HPP
+#define AVR_TRACING_HPP
 
 #include <Arduino.h>
 
 #include "digitalWriteFast.h"
-#include <AvrTracing.h> // Contains function prototypes
+#include "AvrTracing.h" // Contains function prototypes
+
+#define SUPPRESS_LEADING_ZERO // Suppress leading zero, i.e printPC=0x35A instead of PC=0x035A / costs 36 bytes of program space
+//#define DEBUG_TRACE_INIT // To see internal information at call of initTrace() costs 52 (static) / 196 (dynamic) bytes of program space
 
 /*
  * The amount of pushes for this ISR is compiler and compiler flag dependent
@@ -74,16 +80,14 @@
 #define ADDRESS_COMPARISON_MAX_DELTA 16 // Maximal delta of known function start address and address found on stack
 #endif
 
-//#define DEBUG_INIT // To see internal information at call of initTrace() costs 52 (static) / 196 (dynamic) bytes of program space
-
-union Myword {
+union WordUnionForTracing {
     struct {
         uint8_t LowByte;
         uint8_t HighByte;
     } byte;
     uint16_t UWord;
     int16_t Word;
-    uint8_t * BytePointer;
+    uint8_t *BytePointer;
 };
 
 #define VERSION_AVR_TRACING "1.0.0"
@@ -93,7 +97,7 @@ union Myword {
 /*
  * Prints PC from stack
  * The amount of pushes for this ISR is compiler and compiler flag dependent
- * I saw 15, 17, 19, 20 and 23 (DEBUG_INIT enabled) pushes.
+ * I saw 15, 17, 19, 20 and 23 (DEBUG_TRACE_INIT enabled) pushes.
  * They can be found by looking for <__vector_1> in the assembler file.
  * The assembler file can be generated with avr-objdump --section-headers --source --line-numbers <myfilename>.elf  > <myfilename>.lss.
  * The ATTinyCore board package generates this assembler as a *.lst file.
@@ -106,7 +110,7 @@ union Myword {
 uint8_t sPushAdjust = INVALID_VALUE_OF_PUSH_ADJUST; // contains (NUMBER_OF_PUSH + 1). + 1 to get the MSByte of the call address directly.
 #endif
 ISR(INT0_vect) {
-    uint8_t * tStackPtr = (uint8_t *) SP;
+    uint8_t *tStackPtr = (uint8_t*) SP;
 
 #if defined(NUMBER_OF_PUSH)
     tStackPtr += NUMBER_OF_PUSH + 1;
@@ -120,17 +124,17 @@ ISR(INT0_vect) {
          * which calls us first and adjust sPushAdjust
          */
         tPushAdjust = NUMBER_OF_PUSH_MIN; // start search from this value
-#  ifdef DEBUG_INIT
+#  ifdef DEBUG_TRACE_INIT
         sendStringForTrace("Stack=0x");
 #  endif
-        Myword tAddressToLookFor;
-        Myword tAddressFromStack;
+        WordUnionForTracing tAddressToLookFor;
+        WordUnionForTracing tAddressFromStack;
         // The address on stack is the address of the statement after the "INT0_vect();" statement
         tAddressToLookFor.UWord = (reinterpret_cast<uint16_t>(&enableINT0InterruptOnLowLevel)) + 1; // I saw + 2 as the right value
         do {
             tAddressFromStack.byte.HighByte = *(tStackPtr + tPushAdjust);
             tPushAdjust++;
-#  ifdef DEBUG_INIT
+#  ifdef DEBUG_TRACE_INIT
             // First stack position printed is data of push number NUMBER_OF_PUSH_MIN + 1
             sendUnsignedByteHex(*(tStackPtr + tPushAdjust));
             sendUSARTForTrace(' ');
@@ -141,10 +145,10 @@ ISR(INT0_vect) {
                 && tPushAdjust < INVALID_VALUE_OF_PUSH_ADJUST);
         tPushAdjust--;
 
-#  ifdef DEBUG_INIT
+#  ifdef DEBUG_TRACE_INIT
         sendLineFeed();
-        sendStringForTrace("Address of enableINT0InterruptOnFallingEdge()=");
-        sendUnsignedIntegerHex(reinterpret_cast<uint16_t>(&enableINT0InterruptOnFallingEdge) + 1);
+        sendStringForTrace("Address of enableINT0InterruptOnLowLevel()=");
+        sendUnsignedIntegerHex(reinterpret_cast<uint16_t>(&enableINT0InterruptOnLowLevel) + 1);
         if (tPushAdjust == INVALID_VALUE_OF_PUSH_ADJUST) {
             sendStringForTrace(" not found on stack");
         } else {
@@ -160,7 +164,7 @@ ISR(INT0_vect) {
 #endif
 
     // cannot load 16 bit directly, since bytes are swapped then
-    Myword tPC;
+    WordUnionForTracing tPC;
     tPC.byte.HighByte = *tStackPtr;
     tPC.byte.LowByte = *(tStackPtr + 1);
     tPC.UWord <<= 1;   // Generate LSB. The program counter points only to even addresses and needs no LSB.
@@ -179,7 +183,7 @@ ISR(INT0_vect) {
 }
 
 void initTrace() {
-#ifdef DEBUG_INIT
+#ifdef DEBUG_TRACE_INIT
 #  if defined(NUMBER_OF_PUSH)
     sendStringForTrace("# of pushes in ISR=0x");
     sendUnsignedByteHex(NUMBER_OF_PUSH);
@@ -233,7 +237,7 @@ void stopTracing() {
 /*
  * Drive pin 2 to high and reset it input pullup
  */
-void sendStringForTrace(const char * aStringPtr) {
+void sendStringForTrace(const char *aStringPtr) {
     while (*aStringPtr != 0) {
         sendUSARTForTrace(*aStringPtr++);
     }
@@ -302,10 +306,31 @@ void sendUnsignedByteHex(uint8_t aByte) {
     sendUSARTForTrace(nibbleToHex(aByte));
 }
 
+union WordUnionForPrint {
+    struct {
+        uint8_t LowByte;
+        uint8_t HighByte;
+    } UByte;
+    uint8_t UBytes[2];
+    uint16_t UWord;
+    int16_t Word;
+    uint8_t *BytePointer;
+};
+
 void sendUnsignedIntegerHex(uint16_t aInteger) {
     sendUSARTForTrace('0');
     sendUSARTForTrace('x');
+#if defined(SUPPRESS_LEADING_ZERO)
+    WordUnionForPrint tInteger; // saves 6 bytes :-)
+    tInteger.UWord = aInteger;
+    // this suppresses the leading zero, but costs 36 bytes program space
+    if (tInteger.UByte.HighByte >= 0x10) {
+        sendUSARTForTrace(nibbleToHex(tInteger.UByte.HighByte >> 4));
+    }
+    sendUSARTForTrace(nibbleToHex(tInteger.UByte.HighByte));
+#else
     sendUnsignedByteHex(aInteger >> 8);
+#endif
     sendUnsignedByteHex(aInteger);
 }
 
@@ -318,12 +343,14 @@ void sendUnsignedIntegerHex(uint16_t aInteger) {
  */
 void printNumberOfPushesForISR() {
 #  if defined(NUMBER_OF_PUSH)
-    Serial.print(F("Static defined # of pushes in ISR="));
+    Serial.print(F("Defined # of pushes in ISR="));
     Serial.println(NUMBER_OF_PUSH);
 # else
-    Serial.print(F("Dynamic found # of pushes in ISR="));
-    Serial.println(sPushAdjust - 1);
+    Serial.print(F("Found "));
+    Serial.print(sPushAdjust - 1);
+    Serial.println(F(" pushes in ISR"));
 #  endif
+    Serial.flush();
 }
 
 void printTextSectionAddresses() {
@@ -333,3 +360,6 @@ void printTextSectionAddresses() {
     Serial.println((uint16_t) &_etext, HEX);
     Serial.flush();
 }
+
+#endif // AVR_TRACING_HPP
+#pragma once

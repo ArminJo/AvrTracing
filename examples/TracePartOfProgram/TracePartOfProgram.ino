@@ -3,8 +3,10 @@
  *
  *  Traces the call to digitalWrite(LED_BUILTIN,HIGH);
  *
- *  Copyright (C) 2015  Armin Joachimsmeyer
+ *  Copyright (C) 2020-2021  Armin Joachimsmeyer
  *  Email: armin.joachimsmeyer@gmail.com
+ *
+ *  More info: https://github.com/ArminJo/AvrTracing
  *
  *  This file is part of AvrTracing https://github.com/ArminJo/AvrTracing.
  *
@@ -25,20 +27,21 @@
 
 #include <Arduino.h>
 
-#include "AvrTracing.cpp.h"
+#include "AvrTracing.hpp"
 
 void setup() {
     // initialize the digital pin as an output.
     pinMode(LED_BUILTIN, OUTPUT);
 
     Serial.begin(115200);
-#if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL)
-    delay(2000); // To be able to connect Serial monitor after reset and before first printout
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL) || defined(ARDUINO_attiny3217)
+    delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #endif
 
     Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_AVR_TRACING));
 
 //    Serial.println(F("Low level on PCI0 (pin2) will print program counter"));
+    Serial.flush();
 
     initTrace();
     printNumberOfPushesForISR();
@@ -47,6 +50,8 @@ void setup() {
 }
 
 void loop() {
+    Serial.println();
+    Serial.println(F("Start tracing now"));
     startTracing();
     _NOP()
     ;
@@ -54,5 +59,8 @@ void loop() {
     ; // Both nop's are not printed, but they allow to see the program counter of the call instructions of digitalWrite().
     digitalWrite(LED_BUILTIN, HIGH); // Takes 24 ms for 27 prints.
     stopTracing(); // the first 2 instructions of stopTracing() are printed at last.
+    Serial.println(F("Stop tracing"));
+    Serial.println();
     digitalWrite(LED_BUILTIN, LOW);
+    delay(1000);
 }
