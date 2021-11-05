@@ -5,7 +5,7 @@
  *  Attach button between ground and pin 2. As long as you press it, the current program counter is printed.
  *  AND / OR use startTracing() and stopTracing() to trace selected parts of your code.
  *  !!! startTracing() sets pin 2 to LOW !!!
- *  With tracing enabled and 115200 baud, the effective CPU frequency is around 1 kHz.
+ *  With tracing enabled and 115200 baud, the effective CPU frequency is around 2 kHz.
  *
  *  Program memory size of library:
  *  NUMBER_OF_PUSH is defined (static mode): 284 bytes + 52 if DEBUG_TRACE_INIT is defined (336 total)
@@ -109,7 +109,9 @@ union WordUnionForTracing {
 #if ! defined(NUMBER_OF_PUSH)
 uint8_t sPushAdjust = INVALID_VALUE_OF_PUSH_ADJUST; // contains (NUMBER_OF_PUSH + 1). + 1 to get the MSByte of the call address directly.
 #endif
-ISR(INT0_vect) {
+extern "C" void INT0_vect (void) __attribute__ ((optimize("-Os"),signal,__INTR_ATTRS));
+void INT0_vect (void) {
+// ISR(INT0_vect) {
     uint8_t *tStackPtr = (uint8_t*) SP;
 
 #if defined(NUMBER_OF_PUSH)
@@ -182,7 +184,7 @@ ISR(INT0_vect) {
     }
 }
 
-void initTrace() {
+__attribute__((optimize("-Os"))) void initTrace() {
 #ifdef DEBUG_TRACE_INIT
 #  if defined(NUMBER_OF_PUSH)
     sendStringForTrace("# of pushes in ISR=0x");
@@ -199,7 +201,7 @@ void initTrace() {
  * INT0 is at pin2
  * Enable interrupts during button press.
  */
-void enableINT0InterruptOnLowLevel() {
+__attribute__((optimize("-Os"))) void enableINT0InterruptOnLowLevel() {
 
 #if ! defined(NUMBER_OF_PUSH)
     INT0_vect(); // call ISR to compute sPushAdjust
@@ -224,12 +226,12 @@ void enableINT0InterruptOnLowLevel() {
  * The first 2 instructions after startTracing() are not printed.
  * You can insert 2  "_NOP();" statements right after startTracing() as a workaround.
  */
-void startTracing() {
+__attribute__((optimize("-Os"))) void startTracing() {
     pinModeFast(2, OUTPUT);
     digitalWriteFast(2, LOW); // The next 2 instructions are not yet printed
 }
 
-void stopTracing() {
+__attribute__((optimize("-Os"))) void stopTracing() {
     digitalWriteFast(2, HIGH);
     pinModeFast(2, INPUT); // results in INPUT_PULLUP, since we wrote the bit to HIGH before. This is the last instruction printed.
 }
@@ -237,13 +239,13 @@ void stopTracing() {
 /*
  * Drive pin 2 to high and reset it input pullup
  */
-void sendStringForTrace(const char *aStringPtr) {
+__attribute__((optimize("-Os"))) void sendStringForTrace(const char *aStringPtr) {
     while (*aStringPtr != 0) {
         sendUSARTForTrace(*aStringPtr++);
     }
 }
 
-void sendPCHex(uint16_t aPC) {
+__attribute__((optimize("-Os"))) void sendPCHex(uint16_t aPC) {
     sendUSARTForTrace('P');
     sendUSARTForTrace('C');
     sendUSARTForTrace('=');
@@ -251,7 +253,7 @@ void sendPCHex(uint16_t aPC) {
     sendLineFeed();
 }
 
-void sendHex(uint16_t aInteger, char aName) {
+__attribute__((optimize("-Os"))) void sendHex(uint16_t aInteger, char aName) {
     sendUSARTForTrace(aName);
     sendUSARTForTrace('=');
     sendUnsignedIntegerHex(aInteger);
@@ -261,7 +263,7 @@ void sendHex(uint16_t aInteger, char aName) {
 /*
  * for own debugging
  */
-void sendHexNoInterrupts(uint16_t aInteger, char aName) {
+__attribute__((optimize("-Os"))) void sendHexNoInterrupts(uint16_t aInteger, char aName) {
     noInterrupts();
     sendUSARTForTrace(aName);
     sendUSARTForTrace('=');
@@ -272,7 +274,7 @@ void sendHexNoInterrupts(uint16_t aInteger, char aName) {
 /**
  * ultra simple blocking USART send routine - works 100%!
  */
-void sendUSARTForTrace(char aChar) {
+__attribute__((optimize("-Os"))) void sendUSARTForTrace(char aChar) {
 // wait for buffer to become empty
 #  if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega1284__) || defined(__AVR_ATmega1284P__) || defined(__AVR_ATmega644__) || defined(__AVR_ATmega644A__) || defined(__AVR_ATmega644P__) || defined(__AVR_ATmega644PA__) || defined(ARDUINO_AVR_LEONARDO) || defined(__AVR_ATmega16U4__) || defined(__AVR_ATmega32U4__)
     // Use TX1 on MEGA and on Leonardo, which has no TX0
@@ -288,12 +290,12 @@ void sendUSARTForTrace(char aChar) {
 #  endif // Atmega...
 }
 
-void sendLineFeed() {
+__attribute__((optimize("-Os"))) void sendLineFeed() {
     sendUSARTForTrace('\r');
     sendUSARTForTrace('\n');
 }
 
-char nibbleToHex(uint8_t aByte) {
+__attribute__((optimize("-Os"))) char nibbleToHex(uint8_t aByte) {
     aByte = aByte & 0x0F;
     if (aByte < 10) {
         return aByte + '0';
@@ -301,7 +303,7 @@ char nibbleToHex(uint8_t aByte) {
     return aByte + 'A' - 10;
 }
 
-void sendUnsignedByteHex(uint8_t aByte) {
+__attribute__((optimize("-Os"))) void sendUnsignedByteHex(uint8_t aByte) {
     sendUSARTForTrace(nibbleToHex(aByte >> 4));
     sendUSARTForTrace(nibbleToHex(aByte));
 }
@@ -317,7 +319,7 @@ union WordUnionForPrint {
     uint8_t *BytePointer;
 };
 
-void sendUnsignedIntegerHex(uint16_t aInteger) {
+__attribute__((optimize("-Os"))) void sendUnsignedIntegerHex(uint16_t aInteger) {
     sendUSARTForTrace('0');
     sendUSARTForTrace('x');
 #if defined(SUPPRESS_LEADING_ZERO)
@@ -341,7 +343,7 @@ void sendUnsignedIntegerHex(uint16_t aInteger) {
 /*
  * Function for printing short info about number of pushes defined or found
  */
-void printNumberOfPushesForISR() {
+__attribute__((optimize("-Os"))) void printNumberOfPushesForISR() {
 #  if defined(NUMBER_OF_PUSH)
     Serial.print(F("Defined # of pushes in ISR="));
     Serial.println(NUMBER_OF_PUSH);
@@ -353,7 +355,7 @@ void printNumberOfPushesForISR() {
     Serial.flush();
 }
 
-void printTextSectionAddresses() {
+__attribute__((optimize("-Os"))) void printTextSectionAddresses() {
     Serial.print(F("Start of text section=0x"));
     Serial.print((uint16_t) &__init, HEX);
     Serial.print(F(" end=0x"));

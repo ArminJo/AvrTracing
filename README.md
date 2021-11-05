@@ -179,6 +179,10 @@ or to proof, that you have counted the pushes of the ISR correct :-).
 # Compile options / macros for this library
 If you coomment out the line `#define DEBUG_INIT` you see internal information at the call of `initTrace()`. This costs 52 (static) / 196 (dynamic) bytes of program space.
 
+# Related links
+https://github.com/jdolinay/avr_debug
+https://hinterm-ziel.de/index.php/2021/07/19/debugging3-debugging-is-like-being-the-detective-in-a-crime-movie-where-you-are-also-the-murderer
+
 #### If you find this library useful, please give it a star.
 
 
