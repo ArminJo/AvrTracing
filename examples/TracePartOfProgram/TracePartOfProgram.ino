@@ -21,7 +21,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
 
@@ -34,14 +34,14 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
 
     Serial.begin(115200);
-#if defined(__AVR_ATmega32U4__) || defined(SERIAL_USB) || defined(SERIAL_PORT_USBVIRTUAL) || defined(ARDUINO_attiny3217)
+#if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/|| defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
     delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #endif
 
     Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_AVR_TRACING));
 
 //    Serial.println(F("Low level on PCI0 (pin2) will print program counter"));
-    Serial.flush();
+    Serial.flush(); // guarantee to see the message
 
     initTrace();
     printNumberOfPushesForISR();
@@ -52,13 +52,15 @@ void setup() {
 void loop() {
     Serial.println();
     Serial.println(F("Start tracing now"));
-    startTracing();
+    Serial.flush(); // guarantee to see the message
+
+    startTracing(); // This connects Pin 2 to ground
     _NOP()
     ;
     _NOP()
     ; // Both nop's are not printed, but they allow to see the program counter of the call instructions of digitalWrite().
     digitalWrite(LED_BUILTIN, HIGH); // Takes 24 ms for 27 prints.
-    stopTracing(); // the first 2 instructions of stopTracing() are printed at last.
+    stopTracing(); // This releases connection to ground. The first 2 instructions of stopTracing() are printed at last.
     Serial.println(F("Stop tracing"));
     Serial.println();
     digitalWrite(LED_BUILTIN, LOW);

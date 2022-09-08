@@ -20,11 +20,11 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/gpl.html>.
+ *  along with this program. If not, see <http://www.gnu.org/licenses/gpl.html>.
  *
  */
-#ifndef AVR_TRACING_H_
-#define AVR_TRACING_H_
+#ifndef _AVR_TRACING_H
+#define _AVR_TRACING_H
 
 #include <Arduino.h>
 
@@ -48,6 +48,7 @@ void printTextSectionAddresses();
 void sendUSARTForTrace(char aChar);
 void sendUnsignedByteHex(uint8_t aByte);
 void sendUnsignedIntegerHex(uint16_t aInteger);
+void sendUnsignedInteger(uint16_t aInteger);
 void sendLineFeed();
 void sendStringForTrace(const char *aStringPtr);
 void sendPCHex(uint16_t aPC);
@@ -55,6 +56,4 @@ void sendHex(uint16_t aInteger, char aName);
 void sendHexNoInterrupts(uint16_t aInteger, char aName);
 char nibbleToHex(uint8_t aByte);
 
-#endif // AVR_TRACING_H_
-
-#pragma once
+#endif // _AVR_TRACING_H

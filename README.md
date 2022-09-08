@@ -14,7 +14,7 @@ Trace your program by pressing a button **connected at pin 2** or use `startTrac
 **Currently only running on ATmega type processors like on the Arduino Uno, Nano, or Leonardo boards.**
 
 # Timing
-With tracing enabled and 115200 baud, the **effective CPU frequency is around 2 kHz i.e. 7500 times slower**.<br/>
+With tracing enabled and 115200 baud, 11 characters "PC=0x...\r\n" are sent each time, lasting around 1 millisecond. So the **effective CPU frequency is around 1 kHz i.e. 16,000 times slower**. for 1 cycle commands. 2 or 3 cycle commands require the same time, so the effective CPU frequency is 2 or 3 kHz respectively.<br/>
 E.g. delayMicroseconds(1000) is slowed down by the factor of 7500 and lasts 7.5 seconds.<br/>
 Interrupt service routines cannot be traced by this library. This results in millis() and micros() are slow, but they tell the real time.
 Thus delay() *only* takes 48 times the original value.<br/>
@@ -24,7 +24,7 @@ I observed, that Wire will hang if traced and no timeout is specified with `Wire
 In general, **functions depending on timing may not work or behave strange if traced**.
 
 # Usage
-```
+```c++
 #include "AvrTracing.hpp"
 
 setup() {
@@ -56,7 +56,7 @@ PC=0x01DE
 PC=0x01E0
 ```
 ## Trace only part of your program
-```
+```c++
     ...
     startTracing();
     _NOP();
@@ -177,7 +177,7 @@ to get the right number of pushes and then switch to static mode using this valu
 or to proof, that you have counted the pushes of the ISR correct :-).
 
 # Compile options / macros for this library
-If you coomment out the line `#define DEBUG_INIT` you see internal information at the call of `initTrace()`. This costs 52 (static) / 196 (dynamic) bytes of program space.
+If you coomment out the line `#define DEBUG_INIT` you see internal information at the call of `initTrace()`. This costs 52 (static) / 196 (dynamic) bytes of program memory.
 
 # Related links
 https://github.com/jdolinay/avr_debug
@@ -187,5 +187,9 @@ https://hinterm-ziel.de/index.php/2021/07/19/debugging3-debugging-is-like-being-
 
 
 # Revision History
+### Version 1.0.1
+- Keep -Os for the library.
+
+
 ### Version 1.0.0
 Initial Arduino library version.
