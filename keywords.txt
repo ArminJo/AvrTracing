@@ -15,6 +15,7 @@ startTracing	KEYWORD2
 stopTracing	KEYWORD2
 printNumberOfPushesForISR	KEYWORD2
 printTextSectionAddresses	KEYWORD2
+printLowestStackpointerAndProgramAddress	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
