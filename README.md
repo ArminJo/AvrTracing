@@ -9,6 +9,12 @@ Available as Arduino library "AvrTracing"
 [![Build Status](https://github.com/ArminJo/AvrTracing/workflows/LibraryBuild/badge.svg)](https://github.com/ArminJo/AvrTracing/actions)
 ![Hit Counter](https://visitor-badge.laobi.icu/badge?page_id=ArminJo_AvrTracing)
 
+#### If you find this library useful, please give it a star.
+
+&#x1F30E; [Google Translate](https://translate.google.com/translate?sl=en&u=https://github.com/ArminJo/AvrTracing)
+
+<br/>
+
 **A small (344 bytes) Arduino library to have real program traces and to find the place where your program hangs.**<br/>
 Trace your program by pressing a button **connected at pin 2** or use `startTracing()` and `stopTracing()` to trace selected parts of your code. `startTracing()` sets pin 2 to LOW!<br/>
 **Currently only running on ATmega type processors like on the Arduino Uno, Nano, or Leonardo boards.**
@@ -19,9 +25,13 @@ E.g. delayMicroseconds(1000) is slowed down by the factor of 7500 and lasts 7.5 
 Interrupt service routines cannot be traced by this library. This results in millis() and micros() are slow, but they tell the real time.
 Thus delay() *only* takes 48 times the original value.<br/>
 
+<br/>
+
 ## Disclaimer
 I observed, that Wire will hang if traced and no timeout is specified with `Wire.setWireTimeout()`. 
 In general, **functions depending on timing may not work or behave strange if traced**.
+
+<br/>
 
 # Usage
 ```c++
@@ -31,8 +41,10 @@ setup() {
     Serial.begin(115200);
     initTrace();
     // optional info output
-    printTextSectionAddresses();
-    printNumberOfPushesForISR();
+    printTextSectionAddresses(); // PC=0x2818 Start of text section=0x402 end=0x40E8
+    printNumberOfPushesForISR(); // Found 18 pushes in ISR
+    ...
+    Serial.flush(); // To avoid interfering with Serial still printing from its buffer
     startTracing();
     // the code to trace
     ...
@@ -40,21 +52,26 @@ setup() {
 }
 
 ```
-### Resulting output
+
+## Sample output
+If the MSB of the PC does not change, it is suppressed, to shrink output size.<br/>
+Every value with a leading '-' is not in in text section.
+
 ```
-Start of text section=0x184 end=0xABE
-Found 17 pushes in ISR
+PC=0x2818 Start of text section=0x402 end=0x40E8
+Found 18 pushes in ISR
 ...
-PC=0x01D0
-PC=0x01D2
-PC=0x01D4
-PC=0x01D6
-PC=0x01D8
-PC=0x01DA
-PC=0x01DC
-PC=0x01DE
-PC=0x01E0
+PC=20EE F0 F2 F4 FC FE 2100 3B3C 3E 40 42 44 46 48 4A 4C 4E 50 52 5A 5C 
+-PC=0x6A0C -0E -10 -12 -14 -16 -18 -1A -1C -1E -20 -22 -24 -26 -28 -2A -2C -2E -30 -32 -34 -36 
 ```
+
+If you see instructions like this just before stopTracing(), this is the start of stopTracing() code inlined in your program :-).
+
+```
+    236a:   5a 9a           sbi 0x0b, 2 ; 11
+    236c:   52 98           cbi 0x0a, 2 ; 10
+```
+    
 ## Trace only part of your program
 ```c++
     ...
@@ -66,6 +83,8 @@ PC=0x01E0
     digitalWrite(LED_BUILTIN, LOW);
     ...
 ```
+
+<br/>
 
 # Generating the assembler file
 In order to **match PC values to your code**, you require the assembler (*.lss) file to be generated.<br/>
@@ -91,7 +110,10 @@ For the AVR Eclipse Plugin (de.innot.avreclipse.p2repository-2.4.2.zip), check t
 ## Hint for assembler creation
 Sometimes the assembler output is easier to understand, if you disable the compiler optimization. For this, in the  the *platform.txt* file, change all occurences of `-Os` to `-Og` and remove all occurences of `-flto`. This also increases the code size and therefore might not be applicable for large programs, they may not fit into the program memory any more.
 
+<br/>
+
 # TraceBasic example
+
 <table>
 <thead>
   <tr>
@@ -177,16 +199,16 @@ to get the right number of pushes and then switch to static mode using this valu
 or to proof, that you have counted the pushes of the ISR correct :-).
 
 # Compile options / macros for this library
-If you coomment out the line `#define DEBUG_INIT` you see internal information at the call of `initTrace()`. This costs 52 (static) / 196 (dynamic) bytes of program memory.
+If you comment out the line `#define DEBUG_INIT` you see internal information at the call of `initTrace()`. This costs 52 (static) / 196 (dynamic) bytes of program memory.
 
 # Related links
 https://github.com/jdolinay/avr_debug
 https://hinterm-ziel.de/index.php/2021/07/19/debugging3-debugging-is-like-being-the-detective-in-a-crime-movie-where-you-are-also-the-murderer
 
-#### If you find this library useful, please give it a star.
-
-
 # Revision History
+### Version 1.1.0
+- Added `SEARCH_LOWEST_STACKPOINTER_MODE` compile switch and corresponding function `printLowestStackpointerAndProgramAddress()`.
+
 ### Version 1.0.1
 - Keep -Os for the library.
 

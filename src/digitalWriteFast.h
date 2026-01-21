@@ -5,11 +5,21 @@
  * by Watterott electronic (www.watterott.com)
  * based on https://code.google.com/p/digitalwritefast
  *
+ * The value of DigitalReadFast() is the content of the input register e.g. 0x04 for pin2 and NOT always 0 or 1.
+ *
  * License: BSD 3-Clause License (https://opensource.org/licenses/BSD-3-Clause)
  */
 
 #ifndef __digitalWriteFast_h_
 #define __digitalWriteFast_h_ 1
+
+//#define THROW_ERROR_IF_NOT_FAST // If activated, an error is thrown if pin is not a compile time constant
+void NonConstantsUsedForPinModeFast( void )  __attribute__ (( error("Parameter for pinModeFast() function is not constant") ));
+void NonConstantsUsedForDigitalWriteFast( void )  __attribute__ (( error("Parameter for digitalWriteFast() function is not constant") ));
+void NonConstantsUsedForDigitalToggleFast( void )  __attribute__ (( error("Parameter for digitalToggleFast() function is not constant") ));
+int NonConstantsUsedForDigitalReadFast( void )  __attribute__ (( error("Parameter for digitalReadFast() function is not constant") ));
+
+#if !defined(MEGATINYCORE) // megaTinyCore has it own digitalWriteFast function set, except digitalToggleFast().
 
 //#define SANGUINO_PINOUT // define for Sanguino pinout
 
@@ -26,6 +36,8 @@
 #if !defined(BIT_WRITE)
 # define BIT_WRITE(value, bit, bitvalue) (bitvalue ? BIT_SET(value, bit) : BIT_CLEAR(value, bit))
 #endif
+
+#include <Arduino.h> // declarations for the fallback to digitalWrite(), digitalRead() etc.
 
 // --- Arduino Mega and ATmega128x/256x based boards ---
 #if (defined(ARDUINO_AVR_MEGA) || \
@@ -121,13 +133,27 @@
 #define __digitalPinToBit(P) \
 (((P) <= 7) ? (P) : (((P) >= 8 && (P) <= 15) ? (P) - 8 : (((P) >= 16 && (P) <= 23) ? (P) - 16 : (((P) >= 16 && (P) <= 23) ? (P) - 24 : (P) - 32))))
 # endif
-#else
+#elif defined(PORTA)
 #define __digitalPinToPortReg(P) \
 (((P) <= 7) ? &PORTB : (((P) >= 8 && (P) <= 15) ? &PORTD : (((P) >= 16 && (P) <= 23) ? &PORTC : &PORTA)))
 #define __digitalPinToDDRReg(P) \
 (((P) <= 7) ? &DDRB : (((P) >= 8 && (P) <= 15) ? &DDRD : (((P) >= 16 && (P) <= 23) ? &DDRC : &DDRA)))
 #define __digitalPinToPINReg(P) \
 (((P) <= 7) ? &PINB : (((P) >= 8 && (P) <= 15) ? &PIND : (((P) >= 16 && (P) <= 23) ? &PINC : &PINA)))
+# if defined(SANGUINO_PINOUT)
+#define __digitalPinToBit(P) \
+(((P) <= 7) ? (P) : (((P) >= 8 && (P) <= 15) ? (P) - 8 : (((P) >= 16 && (P) <= 23) ? (P) - 16 : (7 - ((P) - 24)))))
+# else //MightyCore Pinout
+#define __digitalPinToBit(P) \
+(((P) <= 7) ? (P) : (((P) >= 8 && (P) <= 15) ? (P) - 8 : (((P) >= 16 && (P) <= 23) ? (P) - 16 : (P) - 24)))
+# endif
+#else
+#define __digitalPinToPortReg(P) \
+(((P) <= 7) ? &PORTB : (((P) >= 8 && (P) <= 15) ? &PORTD : &PORTC))
+#define __digitalPinToDDRReg(P) \
+(((P) <= 7) ? &DDRB : (((P) >= 8 && (P) <= 15) ? &DDRD : &DDRC))
+#define __digitalPinToPINReg(P) \
+(((P) <= 7) ? &PINB : (((P) >= 8 && (P) <= 15) ? &PIND : &PINC))
 # if defined(SANGUINO_PINOUT)
 #define __digitalPinToBit(P) \
 (((P) <= 7) ? (P) : (((P) >= 8 && (P) <= 15) ? (P) - 8 : (((P) >= 16 && (P) <= 23) ? (P) - 16 : (7 - ((P) - 24)))))
@@ -227,12 +253,24 @@
 // TinyCore
 // https://raw.githubusercontent.com/xukangmin/TinyCore/master/avr/package/package_tinycore_index.json
 // https://docs.tinycore.dev/en/latest/
-#elif  defined(__AVR_ATtiny1616__)  || defined(__AVR_ATtiny3216__) || defined(__AVR_ATtiny3217__)
+#elif  defined(__AVR_ATtiny1616__) || defined(__AVR_ATtiny3216__) || defined(__AVR_ATtiny3217__)
 #define __digitalPinToPortReg(P) ((P) <= 5 ? &VPORTB.OUT : ((P) <= 9 ? &VPORTC.OUT : ((P) <= 16 ? &VPORTA.OUT : ((P) <= 18 ? &VPORTB.OUT : &VPORTC.OUT))))
 #define __digitalPinToDDRReg(P) ((P) <= 5 ? &VPORTB.DIR : ((P) <= 9 ? &VPORTC.DIR : ((P) <= 16 ? &VPORTA.DIR : ((P) <= 18 ? &VPORTB.DIR : &VPORTC.DIR))))
 #define __digitalPinToPINReg(P) ((P) <= 5 ? &VPORTB.IN : ((P) <= 9 ? &VPORTC.IN : ((P) <= 16 ? &VPORTA.IN : ((P) <= 18 ? &VPORTB.IN : &VPORTC.IN))))
 #define __digitalPinToBit(P) ( (P) <= 3 ? (3 - P) : ((P) <= 5 ? (P) : ((P) <= 9 ? (P - 6) : ((P) <= 16 ? ((P) - 9) : ((P) <= 18 ? ((P) - 11) : ((P) - 15))))) )
 
+#elif defined(__AVR_ATtiny1614__)
+#define __digitalPinToPortReg(P) ((P) <= 3 ? &VPORTA.OUT : ((P) <= 7 ? &VPORTB.OUT : &VPORTA.OUT))
+#define __digitalPinToDDRReg(P) ((P) <= 3 ? &VPORTA.DIR : ((P) <= 7 ? &VPORTB.DIR : &VPORTA.DIR))
+#define __digitalPinToPINReg(P) ((P) <= 3 ? &VPORTA.IN : ((P) <= 7 ? &VPORTB.IN : &VPORTA.IN))
+#define __digitalPinToBit(P) ( (P) <= 3 ? (P + 4) : ((P) <= 7 ? (7 - P) : ((P) <= 10 ? (P - 7) : (P) - 11)) )
+
+#elif  defined(__AVR_ATtiny816__)
+// https://github.com/Arduino-IRremote/Arduino-IRremote/discussions/1029
+#define __digitalPinToPortReg(P) ((P) <= 3 ? &VPORTA.OUT : ((P) <= 9 ? &VPORTB.OUT : ((P) <= 13 ? &VPORTC.OUT : ((P) <= 17 ? &VPORTA.OUT : &VPORTC.OUT))))
+#define __digitalPinToDDRReg(P) ((P) <= 3 ? &VPORTA.DIR : ((P) <= 9 ? &VPORTB.DIR : ((P) <= 13 ? &VPORTC.DIR : ((P) <= 17 ? &VPORTA.DIR : &VPORTC.DIR))))
+#define __digitalPinToPINReg(P) ((P) <= 3 ? &VPORTA.IN : ((P) <= 9 ? &VPORTB.IN : ((P) <= 13 ? &VPORTC.IN : ((P) <= 17 ? &VPORTA.IN : &VPORTC.IN))))
+#define __digitalPinToBit(P) ( (P) <= 3 ? (P + 4) : ((P) <= 9 ? (9 - P) : ((P) <= 13 ? (P - 10) : ((P) <= 16 ? (P - 13) : ((P) - 17)))) )
 
 // --- ATtinyX5 ---
 #elif defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
@@ -259,7 +297,8 @@
 
 
 // --- ATtinyX4 + ATtinyX7 ---
-#elif  defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__) || defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)
+#elif  defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__) \
+    || defined(__AVR_ATtiny441__) || defined(__AVR_ATtiny841__) || defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)
 # if defined(ARDUINO_AVR_DIGISPARKPRO) || PIN_PA7 == 5
 // Strange enumeration of pins on Digispark board and core library
 #define __digitalPinToPortReg(P) (((P) <= 4) ? &PORTB : &PORTA)
@@ -272,33 +311,37 @@
 #define __digitalPinToPortReg(P) (((P) <= 7) ? &PORTA : &PORTB)
 #define __digitalPinToDDRReg(P)  (((P) <= 7) ? &DDRA : &DDRB)
 #define __digitalPinToPINReg(P)  (((P) <= 7) ? &PINA : &PINB)
+# endif
+# if  defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__) || defined(__AVR_ATtiny441__) || defined(__AVR_ATtiny841__)
+// https://github.com/SpenceKonde/ATTinyCore/blob/v2.0.0-devThis-is-the-head-submit-PRs-against-this/avr/variants/tinyx41_cw/pins_arduino.h#L334
+// Clockwise layout
+#define __digitalPinToBit(P)     (((P) <= 7) ? (P) : ((P) == 11 ? (3) : 10 - (P)))
+# else
 #define __digitalPinToBit(P)     (((P) <= 7) ? (P) : (P) - 8 )
 # endif
 
 #endif
 
-
-void NonConstantsUsedForPinModeFast( void )  __attribute__ (( error("Parameter for pinModeFast() function is not constant") ));
-void NonConstantsUsedForDigitalWriteFast( void )  __attribute__ (( error("Parameter for digitalWriteFast() function is not constant") ));
-void NonConstantsUsedForDigitalToggleFast( void )  __attribute__ (( error("Parameter for digitalToggleFast() function is not constant") ));
-int NonConstantsUsedForDigitalReadFast( void )  __attribute__ (( error("Parameter for digitalReadFast() function is not constant") ));
-
 #if !defined(digitalWriteFast)
 #  if (defined(__AVR__) || defined(ARDUINO_ARCH_AVR)) && defined(__digitalPinToPortReg)
 #    if defined(THROW_ERROR_IF_NOT_FAST)
 #define digitalWriteFast(P, V) \
-if (__builtin_constant_p(P)) { \
-  BIT_WRITE(*__digitalPinToPortReg(P), __digitalPinToBit(P), (V)); \
-} else { \
+do { \
+  if (__builtin_constant_p(P)) { \
+    BIT_WRITE(*__digitalPinToPortReg(P), __digitalPinToBit(P), (V)); \
+  } else { \
     NonConstantsUsedForDigitalWriteFast(); \
-}
+  } \
+} while (0)
 #    else
 #define digitalWriteFast(P, V) \
-if (__builtin_constant_p(P)) { \
-  BIT_WRITE(*__digitalPinToPortReg(P), __digitalPinToBit(P), (V)); \
-} else { \
-  digitalWrite((P), (V)); \
-}
+do { \
+  if (__builtin_constant_p(P)) { \
+    BIT_WRITE(*__digitalPinToPortReg(P), __digitalPinToBit(P), (V)); \
+  } else { \
+    digitalWrite((P), (V)); \
+  } \
+} while (0)
 #    endif // defined(THROW_ERROR_IF_NOT_FAST)
 #  else
 #define digitalWriteFast digitalWrite
@@ -309,28 +352,32 @@ if (__builtin_constant_p(P)) { \
 #  if (defined(__AVR__) || defined(ARDUINO_ARCH_AVR)) && defined(__digitalPinToPortReg)
 #    if defined(THROW_ERROR_IF_NOT_FAST)
 #define pinModeFast(P, V) \
-if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
-  if (V == INPUT_PULLUP) {\
-    BIT_CLEAR(*__digitalPinToDDRReg(P), __digitalPinToBit(P)); \
-    BIT_SET(*__digitalPinToPortReg(P), __digitalPinToBit(P)); \
+do { \
+  if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
+    if (V == INPUT_PULLUP) {\
+      BIT_CLEAR(*__digitalPinToDDRReg(P), __digitalPinToBit(P)); \
+      BIT_SET(*__digitalPinToPortReg(P), __digitalPinToBit(P)); \
+    } else { \
+      BIT_WRITE(*__digitalPinToDDRReg(P), __digitalPinToBit(P), (V)); \
+    } \
   } else { \
-    BIT_WRITE(*__digitalPinToDDRReg(P), __digitalPinToBit(P), (V)); \
-  } \
-} else { \
     NonConstantsUsedForPinModeFast(); \
-}
+  } \
+} while (0)
 #    else
 #define pinModeFast(P, V) \
-if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
-  if (V == INPUT_PULLUP) {\
-    BIT_CLEAR(*__digitalPinToDDRReg(P), __digitalPinToBit(P)); \
-    BIT_SET(*__digitalPinToPortReg(P), __digitalPinToBit(P)); \
+do { \
+  if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
+    if (V == INPUT_PULLUP) {\
+      BIT_CLEAR(*__digitalPinToDDRReg(P), __digitalPinToBit(P)); \
+      BIT_SET(*__digitalPinToPortReg(P), __digitalPinToBit(P)); \
+    } else { \
+      BIT_WRITE(*__digitalPinToDDRReg(P), __digitalPinToBit(P), (V)); \
+    } \
   } else { \
-    BIT_WRITE(*__digitalPinToDDRReg(P), __digitalPinToBit(P), (V)); \
+    pinMode((P), (V)); \
   } \
-} else { \
-  pinMode((P), (V)); \
-}
+} while (0)
 #    endif // defined(THROW_ERROR_IF_NOT_FAST)
 #  else
 #define pinModeFast pinMode
@@ -342,17 +389,11 @@ if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
 #    if defined(THROW_ERROR_IF_NOT_FAST)
 #define digitalReadFast(P) ( (int) __digitalReadFast((P)) )
 // since we have return values, it is easier to implement it by ?:
-#define __digitalReadFast(P ) \
-  (__builtin_constant_p(P) ) ? \
-  (( BIT_READ(*__digitalPinToPINReg(P), __digitalPinToBit(P))) ? HIGH:LOW ) : \
-  NonConstantsUsedForDigitalReadFast()
+#define __digitalReadFast(P ) ( (__builtin_constant_p(P) ) ? (( BIT_READ(*__digitalPinToPINReg(P), __digitalPinToBit(P))) ? HIGH:LOW ) : NonConstantsUsedForDigitalReadFast() )
 #    else
 #define digitalReadFast(P) ( (int) __digitalReadFast((P)) )
 // since we have return values, it is easier to implement it by ?:
-#define __digitalReadFast(P ) \
-  (__builtin_constant_p(P) ) ? \
-  (( BIT_READ(*__digitalPinToPINReg(P), __digitalPinToBit(P))) ? HIGH:LOW ) : \
-  digitalRead((P))
+#define __digitalReadFast(P ) ( (__builtin_constant_p(P) ) ? (( BIT_READ(*__digitalPinToPINReg(P), __digitalPinToBit(P))) ? HIGH:LOW ) : digitalRead((P)) )
 #    endif // defined(THROW_ERROR_IF_NOT_FAST)
 #  else
 #define digitalReadFast digitalRead
@@ -363,22 +404,27 @@ if (__builtin_constant_p(P) && __builtin_constant_p(V)) { \
 #  if (defined(__AVR__) || defined(ARDUINO_ARCH_AVR)) && defined(__digitalPinToPINReg)
 #    if defined(THROW_ERROR_IF_NOT_FAST)
 #define digitalToggleFast(P) \
-if (__builtin_constant_p(P)) { \
-  BIT_SET(*__digitalPinToPINReg(P), __digitalPinToBit(P)); \
-} else { \
+do { \
+  if (__builtin_constant_p(P)) { \
+    BIT_SET(*__digitalPinToPINReg(P), __digitalPinToBit(P)); \
+  } else { \
     NonConstantsUsedForDigitalToggleFast(); \
-}
+  } \
+} while (0)
 #    else
 #define digitalToggleFast(P) \
-if (__builtin_constant_p(P)) { \
-  BIT_SET(*__digitalPinToPINReg(P), __digitalPinToBit(P)); \
-} else { \
-  digitalWrite(P, ! digitalRead(P)); \
-}
+do { \
+  if (__builtin_constant_p(P)) { \
+    BIT_SET(*__digitalPinToPINReg(P), __digitalPinToBit(P)); \
+  } else { \
+    digitalWrite(P, ! digitalRead(P)); \
+  } \
+} while (0)
 #    endif // defined(THROW_ERROR_IF_NOT_FAST)
 #  else
 #define digitalToggleFast(P) digitalWrite(P, ! digitalRead(P))
 #  endif
 #endif // !defined(digitalToggleFast)
 
+#endif // !defined(MEGATINYCORE)
 #endif //__digitalWriteFast_h_
